@@ -148,6 +148,7 @@ class _WSConnection:
             await self._open()
 
         await self.__subscribers._register_downlink_view(downlink_view)
+        await downlink_view._execute_did_open()
 
     async def _unsubscribe(self, downlink_view: '_DownlinkView') -> None:
         """
@@ -158,6 +159,7 @@ class _WSConnection:
         """
 
         await self.__subscribers._deregister_downlink_view(downlink_view)
+        await downlink_view._execute_did_close()
         if not self._has_subscribers():
             await self._close()
 
@@ -187,6 +189,8 @@ class _WSConnection:
                     message = await self.websocket.recv()
                     response = _Envelope._parse_recon(message)
                     await self.__subscribers._receive_message(response)
+            # except:
+            #     pass
             finally:
                 await self._close()
 
@@ -335,6 +339,62 @@ class _DownlinkManager:
         self.downlink_model: _DownlinkModel
 
         await self.downlink_model._receive_message(message)
+
+    async def _subscribers_will_receive(self, message: '_Envelope') -> None:
+        """
+        Execute the `will_receive` method of all downlink views of the downlink manager.
+        """
+        for view in self.__downlink_views.values():
+            await view._execute_will_receive(message)
+
+    async def _subscribers_did_receive(self, message: '_Envelope') -> None:
+        """
+        Execute the `did_receive` method of all downlink views of the downlink manager.
+        """
+        for view in self.__downlink_views.values():
+            await view._execute_did_receive(message)
+
+    async def _subscribers_will_link(self) -> None:
+        """
+        Execute the `will_link` method of all downlink views of the downlink manager.
+        """
+        for view in self.__downlink_views.values():
+            await view._execute_will_link()
+
+    async def _subscribers_did_link(self) -> None:
+        """
+        Execute the `did_link` method of all downlink views of the downlink manager.
+        """
+        for view in self.__downlink_views.values():
+            await view._execute_did_link()
+
+    async def _subscribers_will_unlink(self) -> None:
+        """
+        Execute the `will_unlink` method of all downlink views of the downlink manager.
+        """
+        for view in self.__downlink_views.values():
+            await view._execute_will_unlink()
+
+    async def _subscribers_did_unlink(self) -> None:
+        """
+        Execute the `did_link` method of all downlink views of the downlink manager.
+        """
+        for view in self.__downlink_views.values():
+            await view._execute_did_unlink()
+
+    async def _subscribers_will_sync(self) -> None:
+        """
+        Execute the `will_sync` method of all downlink views of the downlink manager.
+        """
+        for view in self.__downlink_views.values():
+            await view._execute_will_sync()
+
+    async def _subscribers_did_sync(self) -> None:
+        """
+        Execute the `did_sync` method of all downlink views of the downlink manager.
+        """
+        for view in self.__downlink_views.values():
+            await view._execute_did_sync()
 
     async def _subscribers_did_set(self, current_value: Any, old_value: Any) -> None:
         """

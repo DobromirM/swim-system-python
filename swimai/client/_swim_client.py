@@ -73,7 +73,7 @@ class SwimClient:
     def stop(self) -> 'SwimClient':
         """
         Stop the client.
-        Schedule a task for stopping the event loop and its thread and afterwards close the loop.
+        Schedule a task for stopping the event loop and its thread and afterward close the loop.
         """
         self._schedule_task(self.__stop_event_loop)
         self._loop_thread.join()

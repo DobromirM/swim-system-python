@@ -100,6 +100,9 @@ class _Envelope(ABC):
         """
         return Recon.to_string(self._to_value())
 
+    def __str__(self):
+        return self._to_recon()
+
 
 class _LinkAddressedEnvelope(_Envelope):
 

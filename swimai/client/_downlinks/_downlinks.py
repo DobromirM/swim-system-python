@@ -80,6 +80,7 @@ class _DownlinkModel(ABC):
 
         :param message:         - Response message.
         """
+        await self.downlink_manager._subscribers_will_receive(message)
         if message._tag == 'linked':
             await self._receive_linked()
         elif message._tag == 'synced':
@@ -88,23 +89,28 @@ class _DownlinkModel(ABC):
             await self._receive_event(message)
         elif message._tag == 'unlinked':
             await self._receive_unlinked(message)
+        await self.downlink_manager._subscribers_did_receive(message)
 
     async def _receive_linked(self) -> None:
         """
         Handle a `linked` response message from the remote agent.
         """
+        await self.downlink_manager._subscribers_will_link()
         self.linked.set()
+        await self.downlink_manager._subscribers_did_link()
 
     async def _receive_unlinked(self, message: '_Envelope') -> None:
         """
         Handle an `unlinked` response message from the remote agent.
 
-        :param message          - Response message.
+        :param message:         - Response message.
         """
+        await self.downlink_manager._subscribers_will_unlink()
         if message._body == Value.absent():
             raise Exception(f'Lane "{self.lane_uri}" was unlinked!')
         elif message._body != message._body._tag == 'laneNotFound':
             raise Exception(f'Lane "{self.lane_uri}" was not found on the remote agent!')
+        await self.downlink_manager._subscribers_did_unlink()
 
     async def __close(self) -> None:
         self.task.cancel()
@@ -127,6 +133,15 @@ class _DownlinkView(ABC):
         self._model = None
         self._downlink_manager = None
         self._is_open = False
+
+        self._did_open_callback = None
+        self._did_close_callback = None
+        self._will_receive_callback = None
+        self._did_receive_callback = None
+        self._will_link_callback = None
+        self._did_link_callback = None
+        self._will_unlink_callback = None
+        self._did_unlink_callback = None
 
         self.__registered_classes = dict()
         self.__deregistered_classes = set()
@@ -195,6 +210,86 @@ class _DownlinkView(ABC):
         self._lane_uri = lane_uri
         return self
 
+    def did_open(self, function: Callable) -> '_DownlinkView':
+        """
+        Set the `did_open` callback of the current downlink view to a given function.
+
+        :param function:   - Function to be called when the downlink is opened.
+        :return:           - The current downlink view.
+        """
+        self._did_open_callback = validate_callback(function)
+        return self
+
+    def did_close(self, function: Callable) -> '_DownlinkView':
+        """
+        Set the `did_close` callback of the current downlink view to a given function.
+
+        :param function:   - Function to be called when the downlink is closed.
+        :return:           - The current downlink view.
+        """
+        self._did_close_callback = validate_callback(function)
+        return self
+
+    def will_receive(self, function: Callable) -> '_DownlinkView':
+        """
+        Set the `will_receive` callback of the current downlink view to a given function.
+
+        :param function:   - Function to be called when a message is about to be received by the downlink.
+        :return:           - The current downlink view.
+        """
+        self._will_receive_callback = validate_callback(function)
+        return self
+
+    def did_receive(self, function: Callable) -> '_DownlinkView':
+        """
+        Set the `did_receive` callback of the current downlink view to a given function.
+
+        :param function:   - Function to be called when a message is received by the downlink.
+        :return:           - The current downlink view.
+        """
+        self._did_receive_callback = validate_callback(function)
+        return self
+
+    def will_link(self, function: Callable) -> '_DownlinkView':
+        """
+        Set the `will_link` callback of the current downlink view to a given function.
+
+        :param function:   - Function to be called when a link message is about to be received by the downlink.
+        :return:           - The current downlink view.
+        """
+        self._will_link_callback = validate_callback(function)
+        return self
+
+    def did_link(self, function: Callable) -> '_DownlinkView':
+        """
+        Set the `did_link` callback of the current downlink view to a given function.
+
+        :param function:   - Function to be called when a link message is received by the downlink.
+        :return:           - The current downlink view.
+        """
+        self._did_link_callback = validate_callback(function)
+        return self
+
+    def will_unlink(self, function: Callable) -> '_DownlinkView':
+        """
+        Set the `will_unlink` callback of the current downlink view to a given function.
+
+        :param function:   - Function to be called when an unlink message is about to be received by the downlink.
+        :return:           - The current downlink view.
+        """
+        self._will_unlink_callback = validate_callback(function)
+        return self
+
+    def did_unlink(self, function: Callable) -> '_DownlinkView':
+        """
+        Set the `did_unlink` callback of the current downlink view to a given function.
+
+        :param function:   - Function to be called when an unlink message is received by the downlink.
+        :return:           - The current downlink view.
+        """
+        self._did_unlink_callback = validate_callback(function)
+        return self
+
     def register_class(self, custom_class: Any) -> None:
         """
         Register a class with the downlink view. The registered classes are used for constructing objects when
@@ -234,6 +329,70 @@ class _DownlinkView(ABC):
         else:
             self.__clear_classes = True
             self.__registered_classes.clear()
+
+    # noinspection PyAsyncCall
+    async def _execute_did_open(self) -> None:
+        """
+        Execute the custom `did_open` callback of the current downlink view.
+        """
+        if self._did_open_callback:
+            self._client._schedule_task(self._did_open_callback)
+
+    # noinspection PyAsyncCall
+    async def _execute_did_close(self) -> None:
+        """
+        Execute the custom `did_close` callback of the current downlink view.
+        """
+        if self._did_close_callback:
+            self._client._schedule_task(self._did_close_callback)
+
+    # noinspection PyAsyncCall
+    async def _execute_will_receive(self, message: '_Envelope') -> None:
+        """
+        Execute the custom `will_receive` callback of the current downlink view.
+        """
+        if self._will_receive_callback:
+            self._client._schedule_task(self._will_receive_callback, message)
+
+    # noinspection PyAsyncCall
+    async def _execute_did_receive(self, message: '_Envelope') -> None:
+        """
+        Execute the custom `did_receive` callback of the current downlink view.
+        """
+        if self._did_receive_callback:
+            self._client._schedule_task(self._did_receive_callback, message)
+
+    # noinspection PyAsyncCall
+    async def _execute_will_link(self) -> None:
+        """
+        Execute the custom `will_link` callback of the current downlink view.
+        """
+        if self._will_link_callback:
+            self._client._schedule_task(self._will_link_callback)
+
+    # noinspection PyAsyncCall
+    async def _execute_did_link(self) -> None:
+        """
+        Execute the custom `did_link` callback of the current downlink view.
+        """
+        if self._did_link_callback:
+            self._client._schedule_task(self._did_link_callback)
+
+    # noinspection PyAsyncCall
+    async def _execute_will_unlink(self) -> None:
+        """
+        Execute the custom `will_unlink` callback of the current downlink view.
+        """
+        if self._will_unlink_callback:
+            self._client._schedule_task(self._will_unlink_callback)
+
+    # noinspection PyAsyncCall
+    async def _execute_did_unlink(self) -> None:
+        """
+        Execute the custom `did_unlink` callback of the current downlink view.
+        """
+        if self._did_link_callback:
+            self._client._schedule_task(self._did_unlink_callback)
 
     @abstractmethod
     async def _register_manager(self, manager: '_DownlinkManager') -> None:
@@ -368,7 +527,9 @@ class _ValueDownlinkModel(_DownlinkModel):
         await self.__set_value(message)
 
     async def _receive_synced(self) -> None:
+        await self.downlink_manager._subscribers_will_sync()
         self._synced.set()
+        await self.downlink_manager._subscribers_did_sync()
 
     async def _send_message(self, message: '_Envelope') -> None:
         """
@@ -406,6 +567,8 @@ class _ValueDownlinkView(_DownlinkView):
 
     def __init__(self, client: 'SwimClient') -> None:
         super().__init__(client)
+        self._will_sync_callback = None
+        self._did_sync_callback = None
         self._did_set_callback = None
         self._initialised = asyncio.Event()
 
@@ -436,6 +599,26 @@ class _ValueDownlinkView(_DownlinkView):
 
         if blocking:
             task.result()
+
+    def will_sync(self, function: Callable) -> '_ValueDownlinkView':
+        """
+        Set the `will_sync` callback of the current downlink view to a given function.
+
+        :param function:   - Function to be called when a sync message is about to be received by the downlink.
+        :return:           - The current downlink view.
+        """
+        self._will_sync_callback = validate_callback(function)
+        return self
+
+    def did_sync(self, function: Callable) -> '_ValueDownlinkView':
+        """
+        Set the `did_sync` callback of the current downlink view to a given function.
+
+        :param function:   - Function to be called when a sync message is received by the downlink.
+        :return:           - The current downlink view.
+        """
+        self._did_sync_callback = validate_callback(function)
+        return self
 
     def did_set(self, function: Callable) -> '_ValueDownlinkView':
         """
@@ -480,6 +663,22 @@ class _ValueDownlinkView(_DownlinkView):
         await self._model._send_message(message)
 
     # noinspection PyAsyncCall
+    async def _execute_will_sync(self) -> None:
+        """
+        Execute the custom `will_sync` callback of the current downlink view.
+        """
+        if self._will_sync_callback:
+            self._client._schedule_task(self._will_sync_callback)
+
+    # noinspection PyAsyncCall
+    async def _execute_did_sync(self) -> None:
+        """
+        Execute the custom `did_sync` callback of the current downlink view.
+        """
+        if self._did_sync_callback:
+            self._client._schedule_task(self._did_sync_callback)
+
+    # noinspection PyAsyncCall
     async def _execute_did_set(self, current_value: Any, old_value: Any) -> None:
         """
         Execute the custom `did_set` callback of the current downlink view.
@@ -513,7 +712,9 @@ class _MapDownlinkModel(_DownlinkModel):
             await self.__receive_remove(message)
 
     async def _receive_synced(self) -> None:
+        await self.downlink_manager._subscribers_will_sync()
         self._synced.set()
+        await self.downlink_manager._subscribers_did_sync()
 
     async def _send_message(self, message: '_Envelope') -> None:
         """
@@ -571,6 +772,8 @@ class _MapDownlinkView(_DownlinkView):
 
     def __init__(self, client: 'SwimClient') -> None:
         super().__init__(client)
+        self._will_sync_callback = None
+        self._did_sync_callback = None
         self._did_update_callback = None
         self._did_remove_callback = None
         self._initialised = asyncio.Event()
@@ -618,6 +821,26 @@ class _MapDownlinkView(_DownlinkView):
         if blocking:
             task.result()
 
+    def will_sync(self, function: Callable) -> '_MapDownlinkView':
+        """
+        Set the `will_sync` callback of the current downlink view to a given function.
+
+        :param function:   - Function to be called when a sync message is about to be received by the downlink.
+        :return:           - The current downlink view.
+        """
+        self._will_sync_callback = validate_callback(function)
+        return self
+
+    def did_sync(self, function: Callable) -> '_MapDownlinkView':
+        """
+        Set the `did_sync` callback of the current downlink view to a given function.
+
+        :param function:   - Function to be called when a sync message is received by the downlink.
+        :return:           - The current downlink view.
+        """
+        self._did_sync_callback = validate_callback(function)
+        return self
+
     def did_update(self, function: Callable) -> '_MapDownlinkView':
         """
         Set the `did_update` callback of the current downlink view to a given function.
@@ -660,6 +883,22 @@ class _MapDownlinkView(_DownlinkView):
                 return list(self._model._map.values())
             else:
                 return self._model._map.get(key, (Value.absent(), Value.absent()))[1]
+
+    # noinspection PyAsyncCall
+    async def _execute_will_sync(self) -> None:
+        """
+        Execute the custom `will_sync` callback of the current downlink view.
+        """
+        if self._will_sync_callback:
+            self._client._schedule_task(self._will_sync_callback)
+
+    # noinspection PyAsyncCall
+    async def _execute_did_sync(self) -> None:
+        """
+        Execute the custom `did_sync` callback of the current downlink view.
+        """
+        if self._did_sync_callback:
+            self._client._schedule_task(self._did_sync_callback)
 
     # noinspection PyAsyncCall
     async def _execute_did_update(self, key: Any, new_value: Any, old_value: Any) -> None:

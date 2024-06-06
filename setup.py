@@ -21,7 +21,7 @@ with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
 setuptools.setup(
-    name='swimai',
+    name='swimos',
     version='1.2.0-alpha',
     author='Dobromir Marinov',
     author_email='dobromir@swim.it',

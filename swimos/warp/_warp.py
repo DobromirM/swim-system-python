@@ -15,9 +15,9 @@
 import math
 from abc import ABC, abstractmethod
 from typing import Optional
-from swimai.recon import Recon
-from swimai.structures import Attr, Value, Num, RecordMap
-from swimai.structures._structs import _Record, _Item
+from swimos.recon import Recon
+from swimos.structures import Attr, Value, Num, RecordMap
+from swimos.structures._structs import _Record, _Item
 
 
 class _Envelope(ABC):

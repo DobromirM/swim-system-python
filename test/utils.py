@@ -15,8 +15,8 @@
 import asyncio
 from typing import Any
 from unittest.mock import MagicMock
-from swimai.client._connections import _ConnectionStatus
-from swimai.structures._structs import _Item
+from swimos.client._connections import _ConnectionStatus
+from swimos.structures._structs import _Item
 
 
 class CustomString:

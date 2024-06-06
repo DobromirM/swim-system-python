@@ -13,7 +13,7 @@
 #  limitations under the License.
 
 import time
-from swimai import SwimClient
+from swimos import SwimClient
 
 
 async def custom_did_set(new_value, old_value):

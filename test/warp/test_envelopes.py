@@ -14,9 +14,9 @@
 
 import unittest
 
-from swimai.structures import Text
-from swimai.structures._structs import _Absent
-from swimai.warp._warp import _Envelope, _SyncRequestForm, _SyncedResponseForm, _LinkedResponseForm, _EventMessageForm, \
+from swimos.structures import Text
+from swimos.structures._structs import _Absent
+from swimos.warp._warp import _Envelope, _SyncRequestForm, _SyncedResponseForm, _LinkedResponseForm, _EventMessageForm, \
     _CommandMessageForm, _SyncRequest, _SyncedResponse, _LinkedResponse, _CommandMessage, _EventMessage, _LinkRequestForm, \
     _UnlinkedResponseForm, _LinkRequest, _UnlinkedResponse
 

@@ -21,7 +21,7 @@ steps:
     displayName: 'Run flake8'
 
   - script: |
-      py.test --cov-report=xml --cov=swimai test/
+      py.test --cov-report=xml --cov=swimos test/
     displayName: 'Run pytest'
 
   - template: azure-code-coverage.yml

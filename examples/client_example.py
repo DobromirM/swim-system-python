@@ -15,8 +15,8 @@
 # Setting the value of a value lane on a remote agent.
 import time
 
-from swimai import SwimClient
-from swimai.structures import Num
+from swimos import SwimClient
+from swimos.structures import Num
 
 
 async def custom_on_event_callback(event):

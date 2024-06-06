@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from swimai.structures._structs import Value
+from swimos.structures._structs import Value
 from ._parsers import _ReconParser
 from ._writers import _ReconWriter
 

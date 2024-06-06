@@ -14,10 +14,10 @@
 
 import unittest
 
-from swimai.structures import RecordMap, Attr, Text, Slot
-from swimai.recon import Recon
-from swimai.recon._parsers import _ReconParser
-from swimai.recon._writers import _ReconWriter
+from swimos.structures import RecordMap, Attr, Text, Slot
+from swimos.recon import Recon
+from swimos.recon._parsers import _ReconParser
+from swimos.recon._writers import _ReconWriter
 
 
 class TestRecon(unittest.TestCase):

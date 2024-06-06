@@ -14,7 +14,7 @@
 
 import unittest
 
-from swimai.recon._parsers import _ReconUtils, _OutputMessage, _InputMessage
+from swimos.recon._parsers import _ReconUtils, _OutputMessage, _InputMessage
 from test.utils import CustomString
 
 

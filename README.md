@@ -68,9 +68,6 @@ with SwimClient() as swim_client:
 1) Install commit hook package: `pip install pre-commit`
 2) Run hook installation: `pre-commit install`
 ### Build package
-##### Building source distribution
-1) Run: `python setup.py sdist`
-##### Building wheel
-1) Install wheel package: `pip install wheel`
-2) Run: `python setup.py sdist`
-
+##### Building package distribution
+1) Install build package: `pip install build`
+2) Run: `python -m build`

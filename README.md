@@ -71,3 +71,6 @@ with SwimClient() as swim_client:
 ##### Building package distribution
 1) Install build package: `pip install build`
 2) Run: `python -m build`
+##### Releasing a new version
+1) Add version tag: `git tag VERSION (e.g. 0.1.0)`
+2) Push to remote: `git push origin VERSION`

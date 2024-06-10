@@ -14,9 +14,9 @@
 
 import unittest
 
-from swimai.recon._parsers import _ReconParser, _InputMessage, _OutputMessage, _DecimalParser
-from swimai.structures import RecordMap, Slot, Text, Attr, Num, Bool
-from swimai.structures._structs import _Absent
+from swimos.recon._parsers import _ReconParser, _InputMessage, _OutputMessage, _DecimalParser
+from swimos.structures import RecordMap, Slot, Text, Attr, Num, Bool
+from swimos.structures._structs import _Absent
 
 
 class TestParsers(unittest.TestCase):

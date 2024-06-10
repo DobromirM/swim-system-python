@@ -17,11 +17,11 @@ from concurrent import futures
 from threading import Thread
 from unittest.mock import patch
 
-from swimai.client._downlinks._downlinks import _ValueDownlinkView, _MapDownlinkView, _EventDownlinkView
-from swimai.structures import Text
+from swimos.client._downlinks._downlinks import _ValueDownlinkView, _MapDownlinkView, _EventDownlinkView
+from swimos.structures import Text
 from test.utils import MockWebsocketConnect, MockWebsocket, MockAsyncFunction, MockScheduleTask, \
     mock_exception_callback, MockRunWithExceptionOnce, MockExceptionOnce
-from swimai import SwimClient
+from swimos import SwimClient
 
 
 class TestSwimClient(aiounittest.AsyncTestCase):
@@ -268,7 +268,7 @@ class TestSwimClient(aiounittest.AsyncTestCase):
         self.assertEqual('Cannot execute "_add_downlink_view" before the client has been started!',
                          mock_warn.call_args_list[0][0][0])
 
-    @patch('swimai.client._connections._ConnectionPool._add_downlink_view', new_callable=MockAsyncFunction)
+    @patch('swimos.client._connections._ConnectionPool._add_downlink_view', new_callable=MockAsyncFunction)
     async def test_swim_client_add_downlink_view(self, mock_add_downlink):
         # Given
         host_uri = 'ws://localhost:9001'
@@ -288,8 +288,8 @@ class TestSwimClient(aiounittest.AsyncTestCase):
         # Then
         mock_add_downlink.assert_called_once_with(downlink_view)
 
-    @patch('swimai.client._connections._ConnectionPool._add_downlink_view', new_callable=MockAsyncFunction)
-    @patch('swimai.client._connections._ConnectionPool._remove_downlink_view', new_callable=MockAsyncFunction)
+    @patch('swimos.client._connections._ConnectionPool._add_downlink_view', new_callable=MockAsyncFunction)
+    @patch('swimos.client._connections._ConnectionPool._remove_downlink_view', new_callable=MockAsyncFunction)
     async def test_swim_client_remove_downlink_view(self, mock_remove_downlink, mock_add_downlink):
         # Given
         host_uri = 'ws://localhost:9001'
@@ -311,7 +311,7 @@ class TestSwimClient(aiounittest.AsyncTestCase):
         mock_add_downlink.assert_called_once_with(downlink_view)
         mock_remove_downlink.assert_called_once_with(downlink_view)
 
-    @patch('swimai.client._connections._ConnectionPool._get_connection', new_callable=MockAsyncFunction)
+    @patch('swimos.client._connections._ConnectionPool._get_connection', new_callable=MockAsyncFunction)
     async def test_swim_client_get_connection(self, mock_get_connection):
         # Given
         host_uri = 'ws://localhost:9001'

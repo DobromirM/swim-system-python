@@ -14,7 +14,7 @@
 
 import unittest
 
-from swimai.warp._warp import _Envelope
+from swimos.warp._warp import _Envelope
 
 
 class TestParser(unittest.TestCase):

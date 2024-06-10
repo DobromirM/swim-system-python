@@ -14,8 +14,8 @@
 
 import time
 
-from swimai import SwimClient
-from swimai.structures import Value
+from swimos import SwimClient
+from swimos.structures import Value
 
 if __name__ == '__main__':
     with SwimClient() as swim_client:

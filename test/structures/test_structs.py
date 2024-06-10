@@ -14,8 +14,8 @@
 import os
 import unittest
 
-from swimai.structures import Num, Attr, Slot, Text, RecordMap, Bool, Value, RecordConverter
-from swimai.structures._structs import _Item, _Extant, _Absent, _RecordFlags, _Record, _RecordMapView, _ValueBuilder
+from swimos.structures import Num, Attr, Slot, Text, RecordMap, Bool, Value, RecordConverter
+from swimos.structures._structs import _Item, _Extant, _Absent, _RecordFlags, _Record, _RecordMapView, _ValueBuilder
 from test.utils import CustomString, CustomItem, MockPerson, MockPet, MockCar
 
 

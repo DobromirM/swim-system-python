@@ -16,7 +16,7 @@ import asyncio
 import websockets
 
 from enum import Enum
-from swimai.warp._warp import _Envelope
+from swimos.warp._warp import _Envelope
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:

@@ -26,8 +26,8 @@ from typing import Callable, Any, Optional
 from ._connections import _ConnectionPool, _WSConnection
 from ._downlinks._downlinks import _ValueDownlinkView, _EventDownlinkView, _DownlinkView, _MapDownlinkView
 from ._utils import _URI, after_started
-from swimai.structures import RecordConverter
-from swimai.warp._warp import _CommandMessage
+from swimos.structures import RecordConverter
+from swimos.warp._warp import _CommandMessage
 
 
 class SwimClient:

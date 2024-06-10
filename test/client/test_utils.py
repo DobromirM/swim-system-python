@@ -15,7 +15,7 @@
 import unittest
 from urllib.parse import urlparse
 
-from swimai.client._utils import _URI
+from swimos.client._utils import _URI
 
 
 class TestUtils(unittest.TestCase):

@@ -1,5 +1,5 @@
 # Swim System Python Implementation
-[![PyPI version](https://badge.fury.io/py/swimai.svg)](https://badge.fury.io/py/swimai)
+[![PyPI version](https://badge.fury.io/py/swimos.svg)](https://badge.fury.io/py/swimos)
 [![Build Status](https://dev.azure.com/swimai-build/swim-rust/_apis/build/status/swimos.swim-system-python?branchName=main)](https://dev.azure.com/swimai-build/swim-rust/_build/latest?definitionId=6&branchName=main)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Code of Conduct](https://img.shields.io/badge/code-of%20conduct-green.svg)](CODE_OF_CONDUCT.md)
@@ -17,13 +17,13 @@ enabling every state of a Web API to be streamed, without
 interference from billions of queues.
 <br>
 ## Installation
-`pip install swimai`
+`pip install swimos`
 ## Usage
 ```python
 # Setting the value of a value lane on a remote agent.
 import time
 
-from swimai import SwimClient
+from swimos import SwimClient
 
 with SwimClient() as swim_client:
     host_uri = 'ws://localhost:9001'
@@ -57,7 +57,7 @@ with SwimClient() as swim_client:
 ##### With coverage:
 1) Install async test package: `pip install aiounittest`
 2) Install coverage package: `pip install coverage`
-3) Generate report: `coverage run --source=swimai -m unittest`
+3) Generate report: `coverage run --source=swimos -m unittest`
 4) View report: `coverage report -m`
 
 ### Run Lint
@@ -68,9 +68,9 @@ with SwimClient() as swim_client:
 1) Install commit hook package: `pip install pre-commit`
 2) Run hook installation: `pre-commit install`
 ### Build package
-##### Building source distribution
-1) Run: `python setup.py sdist`
-##### Building wheel
-1) Install wheel package: `pip install wheel`
-2) Run: `python setup.py sdist`
-
+##### Building package distribution
+1) Install build package: `pip install build`
+2) Run: `python -m build`
+##### Releasing a new version
+1) Add version tag: `git tag VERSION (e.g. 0.1.0)`
+2) Push to remote: `git push origin VERSION`

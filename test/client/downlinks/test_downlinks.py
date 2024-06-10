@@ -16,15 +16,15 @@ import aiounittest
 from concurrent.futures import Future
 from unittest.mock import patch
 
-from swimai import SwimClient
-from swimai.client._connections import _DownlinkManager, _DownlinkManagerStatus
-from swimai.client._downlinks._downlinks import _EventDownlinkModel, _DownlinkModel, _ValueDownlinkModel, \
+from swimos import SwimClient
+from swimos.client._connections import _DownlinkManager, _DownlinkManagerStatus
+from swimos.client._downlinks._downlinks import _EventDownlinkModel, _DownlinkModel, _ValueDownlinkModel, \
     _EventDownlinkView, \
     _DownlinkView, _ValueDownlinkView, _MapDownlinkModel, _MapDownlinkView
-from swimai.client._downlinks._utils import UpdateRequest, RemoveRequest
-from swimai.structures import Text, Attr, RecordMap, Num, Bool, Slot, Value
-from swimai.structures._structs import _Absent, _Record
-from swimai.warp._warp import _LinkedResponse, _SyncedResponse, _EventMessage, _UnlinkedResponse
+from swimos.client._downlinks._utils import UpdateRequest, RemoveRequest
+from swimos.structures import Text, Attr, RecordMap, Num, Bool, Slot, Value
+from swimos.structures._structs import _Absent, _Record
+from swimos.warp._warp import _LinkedResponse, _SyncedResponse, _EventMessage, _UnlinkedResponse
 from test.utils import MockConnection, MockExecuteOnException, MockWebsocketConnect, MockWebsocket, \
     mock_did_set_confirmation, ReceiveLoop, MockPerson, MockPet, NewScope, MockNoDefaultConstructor, MockCar, \
     MockModel, MockDownlinkManager, mock_on_event_callback, MockEventCallback, \
@@ -65,7 +65,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         self.assertEqual(downlink, actual)
         self.assertIsInstance(actual.task, Future)
 
-    @patch('swimai.client._connections._DownlinkManager._close_views')
+    @patch('swimos.client._connections._DownlinkManager._close_views')
     async def test_close_downlink_model_with_manager(self, mock_close_views):
         # Given
         with SwimClient() as client:
@@ -87,7 +87,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         self.assertTrue(actual.task.cancelled())
         self.assertTrue(mock_close_views.called)
 
-    @patch('swimai.client._connections._DownlinkManager._close_views')
+    @patch('swimos.client._connections._DownlinkManager._close_views')
     async def test_close_downlink_model_without_manager(self, mock_close_views):
         # Given
         with SwimClient() as client:
@@ -1062,7 +1062,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
             downlink_view = _EventDownlinkView(client)
             event = 20
             # When
-            with patch('swimai.SwimClient._schedule_task') as mock_schedule_task:
+            with patch('swimos.SwimClient._schedule_task') as mock_schedule_task:
                 await downlink_view._execute_on_event(event)
 
         # Then
@@ -1503,7 +1503,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
             new_value = 'Test_new_value'
             old_value = 'Test_old_value'
             # When
-            with patch('swimai.SwimClient._schedule_task') as mock_schedule_task:
+            with patch('swimos.SwimClient._schedule_task') as mock_schedule_task:
                 await downlink_view._execute_did_set(new_value, old_value)
 
         # Then
@@ -2256,7 +2256,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
             new_value = 'Test_update_new_value'
             old_value = 'Test_update_old_value'
             # When
-            with patch('swimai.SwimClient._schedule_task') as mock_schedule_task:
+            with patch('swimos.SwimClient._schedule_task') as mock_schedule_task:
                 await downlink_view._execute_did_update(key, new_value, old_value)
 
         # Then
@@ -2285,7 +2285,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
             key = 'Test_remove_key'
             value = 'Test_remove_value'
             # When
-            with patch('swimai.SwimClient._schedule_task') as mock_schedule_task:
+            with patch('swimos.SwimClient._schedule_task') as mock_schedule_task:
                 await downlink_view._execute_did_remove(key, value)
 
         # Then

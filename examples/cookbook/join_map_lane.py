@@ -13,7 +13,7 @@
 #  limitations under the License.
 
 import time
-from swimai import SwimClient
+from swimos import SwimClient
 
 THRESHOLD = 1000
 

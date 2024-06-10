@@ -18,10 +18,10 @@ from unittest.mock import patch
 
 from aiounittest import async_test
 
-from swimai import SwimClient
-from swimai.client._downlinks._downlinks import _EventDownlinkView, _ValueDownlinkView
-from swimai.client._downlinks._utils import UpdateRequest, RemoveRequest, convert_to_async, validate_callback
-from swimai.structures import RecordMap, Slot, Num, Attr, Value
+from swimos import SwimClient
+from swimos.client._downlinks._downlinks import _EventDownlinkView, _ValueDownlinkView
+from swimos.client._downlinks._utils import UpdateRequest, RemoveRequest, convert_to_async, validate_callback
+from swimos.structures import RecordMap, Slot, Num, Attr, Value
 from test.utils import MockPerson, mock_func, mock_coro
 
 

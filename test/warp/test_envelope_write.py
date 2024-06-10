@@ -14,9 +14,9 @@
 
 import unittest
 
-from swimai.structures import Num, Text, RecordMap, Attr, Slot, Bool
-from swimai.structures._structs import _Extant
-from swimai.warp._warp import _SyncRequest, _SyncedResponse, _EventMessage, _LinkedResponse, _CommandMessage, \
+from swimos.structures import Num, Text, RecordMap, Attr, Slot, Bool
+from swimos.structures._structs import _Extant
+from swimos.warp._warp import _SyncRequest, _SyncedResponse, _EventMessage, _LinkedResponse, _CommandMessage, \
     _LinkRequest, _UnlinkedResponse
 
 

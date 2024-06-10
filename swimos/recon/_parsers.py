@@ -16,8 +16,8 @@ from abc import ABC, abstractmethod
 from typing import Union, Any
 
 from ._utils import _ReconUtils, _InputMessage, _OutputMessage
-from swimai.structures import Text, Bool, Attr, Value, Slot, Num, RecordMap
-from swimai.structures._structs import _Item, _Record, _ValueBuilder
+from swimos.structures import Text, Bool, Attr, Value, Slot, Num, RecordMap
+from swimos.structures._structs import _Item, _Record, _ValueBuilder
 
 
 class _ReconParser:

@@ -4,3 +4,4 @@ flake8
 wheel
 setuptools
 pre-commit
+build

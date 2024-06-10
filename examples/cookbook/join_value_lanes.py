@@ -13,8 +13,8 @@
 #  limitations under the License.
 
 import time
-from swimai import SwimClient
-from swimai.structures import Value
+from swimos import SwimClient
+from swimos.structures import Value
 
 
 async def custom_did_update(key, new_value, old_value):

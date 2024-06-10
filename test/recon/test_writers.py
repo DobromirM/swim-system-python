@@ -14,11 +14,11 @@
 
 import unittest
 
-from swimai.recon._parsers import _OutputMessage
-from swimai.recon._writers import _BoolWriter, _IdentWriter, _NumberWriter, _StringWriter, _SlotWriter, _ReconWriter, \
+from swimos.recon._parsers import _OutputMessage
+from swimos.recon._writers import _BoolWriter, _IdentWriter, _NumberWriter, _StringWriter, _SlotWriter, _ReconWriter, \
     _AttrWriter, _BlockWriter
-from swimai.structures import Text, Slot, Attr, Num, Bool
-from swimai.structures._structs import _Extant, _Absent, _Record
+from swimos.structures import Text, Slot, Attr, Num, Bool
+from swimos.structures._structs import _Extant, _Absent, _Record
 from test.utils import CustomItem
 
 

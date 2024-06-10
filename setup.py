@@ -21,8 +21,8 @@ with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
 setuptools.setup(
-    name='swimai',
-    version='1.2.0-alpha',
+    name='swimos',
+    version='1.3.0-alpha',
     author='Dobromir Marinov',
     author_email='dobromir@swim.it',
     description='Standalone Python framework for building massively real-time streaming WARP clients.',

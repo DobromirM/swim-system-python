@@ -18,9 +18,9 @@ from asyncio import Future
 from collections.abc import Callable
 from abc import abstractmethod, ABC
 from typing import TYPE_CHECKING, Any
-from swimai.recon import Recon
-from swimai.structures import Value, RecordConverter
-from swimai.warp._warp import _SyncRequest, _CommandMessage, _Envelope, _LinkRequest
+from swimos.recon import Recon
+from swimos.structures import Value, RecordConverter
+from swimos.warp._warp import _SyncRequest, _CommandMessage, _Envelope, _LinkRequest
 from .._utils import _URI
 from ._utils import before_open, UpdateRequest, RemoveRequest, after_open, validate_callback
 

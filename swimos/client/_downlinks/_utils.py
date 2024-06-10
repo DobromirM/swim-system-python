@@ -16,8 +16,8 @@ import inspect
 import sys
 from abc import ABC, abstractmethod
 from typing import Any, Callable
-from swimai.structures import RecordMap, Slot, Text, RecordConverter, Attr
-from swimai.structures._structs import _Item, _Record
+from swimos.structures import RecordMap, Slot, Text, RecordConverter, Attr
+from swimos.structures._structs import _Item, _Record
 
 
 def before_open(function: 'Callable') -> 'Callable':

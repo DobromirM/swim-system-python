@@ -383,40 +383,182 @@ class MockModel:
     pass
 
 
+class OnEvent:
+    def __init__(self, event):
+        self.event = event
+
+    def __eq__(self, other):
+        return self.event == other.event
+
+
+class DidSet:
+    def __init__(self, new_val, old_val):
+        self.new_val = new_val
+        self.old_val = old_val
+
+    def __eq__(self, other):
+        return self.old_val == other.old_val and self.new_val == other.new_val
+
+
+class DidUpdate:
+
+    def __init__(self, key, new_val, old_val):
+        self.key = key
+        self.old_val = old_val
+        self.new_val = new_val
+
+    def __eq__(self, other):
+        return self.key == other.key and self.old_val == other.old_val and self.new_val == other.new_val
+
+
+class DidRemove:
+
+    def __init__(self, key, old_val):
+        self.key = key
+        self.old_val = old_val
+
+    def __eq__(self, other):
+        return self.key == other.key and self.old_val == other.old_val
+
+
+class WillLink:
+
+    def __init__(self):
+        pass
+
+    def __eq__(self, other):
+        return isinstance(other, WillLink)
+
+
+class DidLink:
+
+    def __init__(self):
+        pass
+
+    def __eq__(self, other):
+        return isinstance(other, DidLink)
+
+
+class WillSync:
+
+    def __init__(self):
+        pass
+
+    def __eq__(self, other):
+        return isinstance(other, WillSync)
+
+
+class DidSync:
+
+    def __init__(self):
+        pass
+
+    def __eq__(self, other):
+        return isinstance(other, DidSync)
+
+
+class WillReceive:
+    def __init__(self, message):
+        self.message = message
+
+    def __eq__(self, other):
+        return self.message == other.message
+
+
+class DidReceive:
+    def __init__(self, message):
+        self.message = message
+
+    def __eq__(self, other):
+        return self.message == other.message
+
+
+class WillUnlink:
+
+    def __init__(self):
+        pass
+
+    def __eq__(self, other):
+        return isinstance(other, WillUnlink)
+
+
+class DidUnlink:
+
+    def __init__(self):
+        pass
+
+    def __eq__(self, other):
+        return isinstance(other, DidUnlink)
+
+
+class DidClose:
+
+    def __init__(self):
+        pass
+
+    def __eq__(self, other):
+        return isinstance(other, DidClose)
+
+
 class MockDownlinkManager:
 
     def __init__(self):
         self.called = 0
-        self.event = None
-        self.did_set_new = None
-        self.did_set_old = None
-        self.update_key = None
-        self.update_value_new = None
-        self.update_value_old = None
-        self.remove_key = None
-        self.remove_old_value = None
+        self.events = list()
         self.strict = False
         self.registered_classes = dict()
 
     async def _subscribers_on_event(self, event):
         self.called = self.called + 1
-        self.event = event
+        self.events.append(OnEvent(event))
 
     async def _subscribers_did_set(self, did_set_new, did_set_old):
         self.called = self.called + 1
-        self.did_set_new = did_set_new
-        self.did_set_old = did_set_old
+        self.events.append(DidSet(did_set_new, did_set_old))
 
     async def _subscribers_did_update(self, update_key, update_value_new, update_value_old):
         self.called = self.called + 1
-        self.update_key = update_key
-        self.update_value_new = update_value_new
-        self.update_value_old = update_value_old
+        self.events.append(DidUpdate(update_key, update_value_new, update_value_old))
 
     async def _subscribers_did_remove(self, remove_key, remove_old_value):
         self.called = self.called + 1
-        self.remove_key = remove_key
-        self.remove_old_value = remove_old_value
+        self.events.append(DidRemove(remove_key, remove_old_value))
+
+    async def _subscribers_will_link(self):
+        self.called = self.called + 1
+        self.events.append(WillLink())
+
+    async def _subscribers_did_link(self):
+        self.called = self.called + 1
+        self.events.append(DidLink())
+
+    async def _subscribers_will_sync(self):
+        self.called = self.called + 1
+        self.events.append(WillSync())
+
+    async def _subscribers_did_sync(self):
+        self.called = self.called + 1
+        self.events.append(DidSync())
+
+    async def _subscribers_will_receive(self, message):
+        self.called = self.called + 1
+        self.events.append(WillReceive(message))
+
+    async def _subscribers_did_receive(self, message):
+        self.called = self.called + 1
+        self.events.append(DidReceive(message))
+
+    async def _subscribers_will_unlink(self):
+        self.called = self.called + 1
+        self.events.append(WillUnlink())
+
+    async def _subscribers_did_unlink(self):
+        self.called = self.called + 1
+        self.events.append(DidUnlink())
+
+    def _close_views(self):
+        self.called = self.called + 1
+        self.events.append(DidClose())
 
 
 class MockEventCallback:

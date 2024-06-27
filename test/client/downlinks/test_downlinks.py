@@ -29,7 +29,8 @@ from test.utils import MockConnection, MockExecuteOnException, MockWebsocketConn
     mock_did_set_confirmation, ReceiveLoop, MockPerson, MockPet, NewScope, MockNoDefaultConstructor, MockCar, \
     MockModel, MockDownlinkManager, mock_on_event_callback, MockEventCallback, \
     MockDidSetCallback, mock_did_set_callback, MockDidUpdateCallback, mock_did_update_callback, \
-    mock_did_remove_callback, MockDidRemoveCallback
+    mock_did_remove_callback, MockDidRemoveCallback, WillReceive, DidLink, WillLink, DidReceive, DidClose, WillSync, \
+    DidSync, OnEvent, DidRemove, DidUpdate, DidSet
 
 
 class TestDownlinks(aiounittest.AsyncTestCase):
@@ -111,6 +112,11 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         # Given
         with SwimClient() as client:
             downlink = _EventDownlinkModel(client)
+
+            # noinspection PyTypeChecker
+            mock_manager = MockDownlinkManager()
+            downlink.downlink_manager = mock_manager
+
             downlink.connection = MockConnection.get_mock_connection()
             downlink.connection.owner = downlink
             linked_message = _LinkedResponse('linked_node', 'linked_lane')
@@ -124,11 +130,22 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         # Then
         self.assertEqual(downlink, actual)
         self.assertTrue(actual.linked.is_set())
+        self.assertEqual(mock_manager.called, 5)
+        self.assertEqual(WillReceive(linked_message), mock_manager.events[0])
+        self.assertEqual(WillLink(), mock_manager.events[1])
+        self.assertEqual(DidLink(), mock_manager.events[2])
+        self.assertEqual(DidReceive(linked_message), mock_manager.events[3])
+        self.assertTrue(DidClose(), mock_manager.events[4])
 
     async def test_downlink_model_receive_message_synced(self):
         # Given
         with SwimClient() as client:
             downlink = _ValueDownlinkModel(client)
+
+            # noinspection PyTypeChecker
+            mock_manager = MockDownlinkManager()
+            downlink.downlink_manager = mock_manager
+
             downlink.connection = MockConnection.get_mock_connection()
             downlink.connection.owner = downlink
             synced_message = _SyncedResponse('synced_node', 'synced_lane')
@@ -142,6 +159,12 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         # Then
         self.assertEqual(downlink, actual)
         self.assertTrue(actual._synced.is_set())
+        self.assertTrue(mock_manager.called, 5)
+        self.assertEqual(WillReceive(synced_message), mock_manager.events[0])
+        self.assertEqual(WillSync(), mock_manager.events[1])
+        self.assertEqual(DidSync(), mock_manager.events[2])
+        self.assertEqual(DidReceive(synced_message), mock_manager.events[3])
+        self.assertEqual(DidClose(), mock_manager.events[4])
 
     async def test_downlink_model_receive_message_event(self):
         # Given
@@ -169,6 +192,11 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         # Given
         with SwimClient(execute_on_exception=MockExecuteOnException.get_mock_execute_on_exception()) as client:
             downlink = _EventDownlinkModel(client)
+
+            # noinspection PyTypeChecker
+            mock_manager = MockDownlinkManager()
+            downlink.downlink_manager = mock_manager
+
             downlink.connection = MockConnection.get_mock_connection()
             downlink.connection.owner = downlink
 
@@ -935,7 +963,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         await downlink_model._receive_event(event_message)
         # Then
         self.assertEqual(1, mock_manager.called)
-        self.assertIsInstance(mock_manager.event, _Absent)
+        self.assertEqual(OnEvent(Value.absent()), mock_manager.events[0])
 
     async def test_event_downlink_receive_event_text(self):
         # Given
@@ -949,7 +977,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         await downlink_model._receive_event(event_message)
         # Then
         self.assertEqual(1, mock_manager.called)
-        self.assertEqual('message', mock_manager.event)
+        self.assertEqual(OnEvent('message'), mock_manager.events[0])
 
     async def test_event_downlink_receive_event_num(self):
         # Given
@@ -963,7 +991,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         await downlink_model._receive_event(event_message)
         # Then
         self.assertEqual(1, mock_manager.called)
-        self.assertEqual(21, mock_manager.event)
+        self.assertEqual(OnEvent(21), mock_manager.events[0])
 
     async def test_event_downlink_receive_event_bool(self):
         # Given
@@ -977,7 +1005,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         await downlink_model._receive_event(event_message)
         # Then
         self.assertEqual(1, mock_manager.called)
-        self.assertEqual(True, mock_manager.event)
+        self.assertEqual(OnEvent(True), mock_manager.events[0])
 
     async def test_event_downlink_receive_event_object(self):
         # Given
@@ -995,8 +1023,9 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         await downlink_model._receive_event(event_message)
         # Then
         self.assertEqual(1, mock_manager.called)
-        self.assertEqual(25, mock_manager.event.age)
-        self.assertEqual('George', mock_manager.event.name)
+        self.assertIsInstance(mock_manager.events[0], OnEvent)
+        self.assertEqual(25, mock_manager.events[0].event.age)
+        self.assertEqual('George', mock_manager.events[0].event.name)
 
     async def test_event_downlink_view_register_manager(self):
         # Given
@@ -1125,9 +1154,15 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         with SwimClient() as client:
             downlink_model = _ValueDownlinkModel(client)
             # When
+            # noinspection PyTypeChecker
+            mock_manager = MockDownlinkManager()
+            downlink_model.downlink_manager = mock_manager
             await downlink_model._receive_synced()
         # Then
         self.assertTrue(downlink_model._synced.is_set())
+        self.assertTrue(mock_manager.events[0], WillSync())
+        self.assertTrue(mock_manager.events[1], DidSync())
+        self.assertEqual(mock_manager.called, 2)
 
     async def test_value_downlink_model_receive_event_absent(self):
         # Given
@@ -1142,8 +1177,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         # Then
         self.assertEqual(Value.absent(), downlink_model._value)
         self.assertEqual(1, mock_manager.called)
-        self.assertEqual(Value.absent(), mock_manager.did_set_new)
-        self.assertEqual(Value.absent(), mock_manager.did_set_old)
+        self.assertEqual(DidSet(Value.absent(), Value.absent()), mock_manager.events[0])
 
     async def test_value_downlink_model_receive_event_text(self):
         # Given
@@ -1158,8 +1192,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         # Then
         self.assertEqual('value_text', downlink_model._value)
         self.assertEqual(1, mock_manager.called)
-        self.assertEqual('value_text', mock_manager.did_set_new)
-        self.assertEqual(Value.absent(), mock_manager.did_set_old)
+        self.assertEqual(DidSet('value_text', Value.absent()), mock_manager.events[0])
 
     async def test_value_downlink_model_receive_event_num(self):
         # Given
@@ -1176,8 +1209,8 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         # Then
         self.assertEqual(50, downlink_model._value)
         self.assertEqual(2, mock_manager.called)
-        self.assertEqual(50, mock_manager.did_set_new)
-        self.assertEqual(11, mock_manager.did_set_old)
+        self.assertEqual(DidSet(11, Value.absent()), mock_manager.events[0])
+        self.assertEqual(DidSet(50, 11), mock_manager.events[1])
 
     async def test_value_downlink_model_receive_event_bool(self):
         # Given
@@ -1192,8 +1225,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         # Then
         self.assertEqual(True, downlink_model._value)
         self.assertEqual(1, mock_manager.called)
-        self.assertEqual(True, mock_manager.did_set_new)
-        self.assertEqual(Value.absent(), mock_manager.did_set_old)
+        self.assertEqual(DidSet(True, Value.absent()), mock_manager.events[0])
 
     async def test_value_downlink_model_receive_event_object(self):
         # Given
@@ -1213,9 +1245,10 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         self.assertEqual('Peter', downlink_model._value.name)
         self.assertEqual(90, downlink_model._value.age)
         self.assertEqual(1, mock_manager.called)
-        self.assertEqual('Peter', mock_manager.did_set_new.name)
-        self.assertEqual(90, mock_manager.did_set_new.age)
-        self.assertEqual(Value.absent(), mock_manager.did_set_old)
+        self.assertIsInstance(mock_manager.events[0], DidSet)
+        self.assertEqual('Peter', mock_manager.events[0].new_val.name)
+        self.assertEqual(90, mock_manager.events[0].new_val.age)
+        self.assertEqual(Value.absent(), mock_manager.events[0].old_val)
 
     async def test_value_downlink_model_send_message(self):
         # Given
@@ -1560,10 +1593,16 @@ class TestDownlinks(aiounittest.AsyncTestCase):
         # Given
         with SwimClient() as client:
             downlink_model = _MapDownlinkModel(client)
+            # noinspection PyTypeChecker
+            mock_manager = MockDownlinkManager()
+            downlink_model.downlink_manager = mock_manager
             # When
             await downlink_model._receive_synced()
         # Then
         self.assertTrue(downlink_model._synced.is_set())
+        self.assertEqual(mock_manager.called, 2)
+        self.assertEqual(mock_manager.events[0], WillSync())
+        self.assertTrue(mock_manager.events[1], DidSync)
 
     async def test_map_downlink_model_receive_event_update_primitive(self):
         # Given
@@ -1580,9 +1619,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
 
         # Then
         self.assertEqual(1, mock_manager.called)
-        self.assertEqual('Elliot', mock_manager.update_key)
-        self.assertEqual(29, mock_manager.update_value_new)
-        self.assertEqual(Value.absent(), mock_manager.update_value_old)
+        self.assertEqual(DidUpdate('Elliot', 29, Value.absent()), mock_manager.events[0])
 
     async def test_map_downlink_model_receive_event_update_object(self):
         # Given
@@ -1601,10 +1638,11 @@ class TestDownlinks(aiounittest.AsyncTestCase):
 
         # Then
         self.assertEqual(1, mock_manager.called)
-        self.assertEqual(person.name, mock_manager.update_key.name)
-        self.assertEqual(person.age, mock_manager.update_key.age)
-        self.assertEqual('Hello', mock_manager.update_value_new)
-        self.assertEqual(Value.absent(), mock_manager.update_value_old)
+        self.assertIsInstance(mock_manager.events[0], DidUpdate)
+        self.assertEqual(person.name, mock_manager.events[0].key.name)
+        self.assertEqual(person.age, mock_manager.events[0].key.age)
+        self.assertEqual('Hello', mock_manager.events[0].new_val)
+        self.assertEqual(Value.absent(), mock_manager.events[0].old_val)
 
     async def test_map_downlink_model_receive_event_update_primitive_existing(self):
         # Given
@@ -1622,9 +1660,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
 
         # Then
         self.assertEqual(1, mock_manager.called)
-        self.assertEqual('Elliot', mock_manager.update_key)
-        self.assertEqual(29, mock_manager.update_value_new)
-        self.assertEqual(11, mock_manager.update_value_old)
+        self.assertEqual(DidUpdate('Elliot', 29, 11), mock_manager.events[0])
 
     async def test_map_downlink_model_receive_event_update_object_existing(self):
         # Given
@@ -1644,10 +1680,11 @@ class TestDownlinks(aiounittest.AsyncTestCase):
 
         # Then
         self.assertEqual(1, mock_manager.called)
-        self.assertEqual(person.name, mock_manager.update_key.name)
-        self.assertEqual(person.age, mock_manager.update_key.age)
-        self.assertEqual('Hello', mock_manager.update_value_new)
-        self.assertEqual('bar', mock_manager.update_value_old)
+        self.assertIsInstance(mock_manager.events[0], DidUpdate)
+        self.assertEqual(person.name, mock_manager.events[0].key.name)
+        self.assertEqual(person.age, mock_manager.events[0].key.age)
+        self.assertEqual('Hello', mock_manager.events[0].new_val)
+        self.assertEqual('bar', mock_manager.events[0].old_val)
 
     async def test_map_downlink_model_receive_event_remove_primitive(self):
         # Given
@@ -1665,8 +1702,9 @@ class TestDownlinks(aiounittest.AsyncTestCase):
 
         # Then
         self.assertEqual(1, mock_manager.called)
-        self.assertEqual('b', mock_manager.remove_key)
-        self.assertEqual(2, mock_manager.remove_old_value)
+        self.assertIsInstance(mock_manager.events[0], DidRemove)
+        self.assertEqual('b', mock_manager.events[0].key)
+        self.assertEqual(2, mock_manager.events[0].old_val)
 
     async def test_map_downlink_model_receive_event_remove_object(self):
         # Given
@@ -1690,9 +1728,10 @@ class TestDownlinks(aiounittest.AsyncTestCase):
 
         # Then
         self.assertEqual(1, mock_manager.called)
-        self.assertEqual(first_person.name, mock_manager.remove_key.name)
-        self.assertEqual(first_person.age, mock_manager.remove_key.age)
-        self.assertEqual('a', mock_manager.remove_old_value)
+        self.assertIsInstance(mock_manager.events[0], DidRemove)
+        self.assertEqual(first_person.name, mock_manager.events[0].key.name)
+        self.assertEqual(first_person.age, mock_manager.events[0].key.age)
+        self.assertEqual('a', mock_manager.events[0].old_val)
 
     async def test_map_downlink_model_receive_event_remove_missing(self):
         # Given
@@ -1709,8 +1748,9 @@ class TestDownlinks(aiounittest.AsyncTestCase):
 
         # Then
         self.assertEqual(1, mock_manager.called)
-        self.assertEqual('b', mock_manager.remove_key)
-        self.assertEqual(Value.absent(), mock_manager.remove_old_value)
+        self.assertIsInstance(mock_manager.events[0], DidRemove)
+        self.assertEqual('b', mock_manager.events[0].key)
+        self.assertEqual(Value.absent(), mock_manager.events[0].old_val)
 
     async def test_map_downlink_model_send_message(self):
         # Given

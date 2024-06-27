@@ -23,7 +23,7 @@ from swimos.client._downlinks._downlinks import _EventDownlinkModel, _DownlinkMo
     _DownlinkView, _ValueDownlinkView, _MapDownlinkModel, _MapDownlinkView
 from swimos.client._downlinks._utils import UpdateRequest, RemoveRequest
 from swimos.structures import Text, Attr, RecordMap, Num, Bool, Slot, Value
-from swimos.structures._structs import _Absent, _Record
+from swimos.structures._structs import _Record
 from swimos.warp._warp import _LinkedResponse, _SyncedResponse, _EventMessage, _UnlinkedResponse
 from test.utils import MockConnection, MockExecuteOnException, MockWebsocketConnect, MockWebsocket, \
     mock_did_set_confirmation, ReceiveLoop, MockPerson, MockPet, NewScope, MockNoDefaultConstructor, MockCar, \

@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 import sys
+import warnings
 from typing import Callable, Optional, Tuple
 from urllib.parse import urlparse, ParseResult
 
@@ -37,6 +38,11 @@ def after_started(function: 'Callable') -> 'Callable':
                 args[0]._handle_exception(exc_value, exc_traceback)
 
     return wrapper
+
+
+def exception_warn(exc_value) -> None:
+    warnings.simplefilter('always', UserWarning)
+    warnings.warn(str(exc_value))
 
 
 class _URI:

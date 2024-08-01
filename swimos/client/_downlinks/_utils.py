@@ -56,7 +56,8 @@ def after_open(function: 'Callable') -> 'Callable':
             return function(*args, **kwargs)
         else:
             try:
-                raise Exception(f'Cannot execute "{function.__name__}" before the downlink has been opened!')
+                raise Exception(
+                    f'Cannot execute "{function.__name__}" before the downlink has been opened or after it has closed!')
             except Exception:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 args[0]._client._handle_exception(exc_value, exc_traceback)

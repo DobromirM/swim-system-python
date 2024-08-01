@@ -37,6 +37,9 @@ class _DownlinkModel(ABC):
         self.host_uri = None
         self.node_uri = None
         self.lane_uri = None
+        self.keep_linked = None
+        self.keep_synced = None
+
         self.task = None
         self.connection = None
         self.linked = asyncio.Event()
@@ -143,6 +146,9 @@ class _DownlinkView(ABC):
         self._will_unlink_callback = None
         self._did_unlink_callback = None
 
+        self._keep_linked = True
+        self._keep_synced = True
+
         self.__registered_classes = dict()
         self.__deregistered_classes = set()
         self.__clear_classes = False
@@ -181,6 +187,13 @@ class _DownlinkView(ABC):
             return self._downlink_manager.registered_classes
 
     def open(self) -> '_DownlinkView':
+        if self._host_uri is None:
+            raise Exception(f'Downlink cannot be opened without first setting the host URI!')
+        if self._node_uri is None:
+            raise Exception(f'Downlink cannot be opened without first setting the node URI!')
+        if self._lane_uri is None:
+            raise Exception(f'Downlink cannot be opened without first setting the lane URI!')
+
         if not self._is_open:
             task = self._client._schedule_task(self._client._add_downlink_view, self)
             if task is not None:
@@ -208,6 +221,16 @@ class _DownlinkView(ABC):
     @before_open
     def set_lane_uri(self, lane_uri: str) -> '_DownlinkView':
         self._lane_uri = lane_uri
+        return self
+
+    @before_open
+    def keep_linked(self, keep_linked: bool) -> '_DownlinkView':
+        self._keep_linked = keep_linked
+        return self
+
+    @before_open
+    def keep_synced(self, keep_synced: bool) -> '_DownlinkView':
+        self._keep_synced = keep_synced
         return self
 
     def did_open(self, function: Callable) -> '_DownlinkView':
@@ -426,6 +449,8 @@ class _DownlinkView(ABC):
         model.host_uri = self._host_uri
         model.node_uri = self._node_uri
         model.lane_uri = self._lane_uri
+        model.keep_linked = self.keep_linked
+        model.keep_synced = self.keep_synced
 
     async def _assign_manager(self, manager: '_DownlinkManager') -> None:
         """
@@ -463,8 +488,10 @@ class _DownlinkView(ABC):
 class _EventDownlinkModel(_DownlinkModel):
 
     async def _establish_downlink(self) -> None:
-        link_request = _LinkRequest(self.node_uri, self.lane_uri)
-        await self.connection._send_message(link_request._to_recon())
+        request = _LinkRequest(self.node_uri, self.lane_uri)
+
+        self.connection._set_init_message(request._to_recon())
+        await self.connection._send_init_message()
 
     async def _receive_event(self, message: _Envelope) -> None:
         converter = RecordConverter.get_converter()
@@ -520,8 +547,13 @@ class _ValueDownlinkModel(_DownlinkModel):
         self._synced = asyncio.Event()
 
     async def _establish_downlink(self) -> None:
-        sync_request = _SyncRequest(self.node_uri, self.lane_uri)
-        await self.connection._send_message(sync_request._to_recon())
+        if self.keep_synced:
+            request = _SyncRequest(self.node_uri, self.lane_uri)
+        else:
+            request = _LinkRequest(self.node_uri, self.lane_uri)
+
+        self.connection._set_init_message(request._to_recon())
+        await self.connection._send_init_message()
 
     async def _receive_event(self, message: '_Envelope') -> None:
         await self.__set_value(message)
@@ -550,7 +582,7 @@ class _ValueDownlinkModel(_DownlinkModel):
 
     async def __set_value(self, message: '_Envelope') -> None:
         """
-        Set the value of the the downlink and trigger the `did_set` callback of the downlink subscribers.
+        Set the value of the downlink and trigger the `did_set` callback of the downlink subscribers.
 
         :param message:        - The message from the remote agent.
         :return:
@@ -702,8 +734,13 @@ class _MapDownlinkModel(_DownlinkModel):
         self._synced = asyncio.Event()
 
     async def _establish_downlink(self) -> None:
-        sync_request = _SyncRequest(self.node_uri, self.lane_uri)
-        await self.connection._send_message(sync_request._to_recon())
+        if self.keep_synced:
+            request = _SyncRequest(self.node_uri, self.lane_uri)
+        else:
+            request = _LinkRequest(self.node_uri, self.lane_uri)
+
+        self.connection._set_init_message(request._to_recon())
+        await self.connection._send_init_message()
 
     async def _receive_event(self, message: '_Envelope') -> None:
         if message._body._tag == 'update':

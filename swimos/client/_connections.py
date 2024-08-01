@@ -13,39 +13,102 @@
 #  limitations under the License.
 
 import asyncio
+from abc import ABC, abstractmethod
 import websockets
 
 from enum import Enum
+from websockets import ConnectionClosed
 from swimos.warp._warp import _Envelope
 from typing import TYPE_CHECKING, Any
+from ._utils import exception_warn
 
 if TYPE_CHECKING:
     from ._downlinks._downlinks import _DownlinkModel
     from ._downlinks._downlinks import _DownlinkView
 
 
+class RetryStrategy(ABC):
+    @abstractmethod
+    async def retry(self) -> bool:
+        """
+        Wait for a period of time that is defined by the retry strategy.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def reset(self):
+        """
+        Reset the retry strategy to its original state.
+        """
+        raise NotImplementedError
+
+
+class IntervalStrategy(RetryStrategy):
+
+    def __init__(self, retries_limit=None, delay=3) -> None:
+        super().__init__()
+        self.retries_limit = retries_limit
+        self.delay = delay
+        self.retries = 0
+
+    async def retry(self) -> bool:
+        if self.retries_limit is None or self.retries_limit >= self.retries:
+            await asyncio.sleep(self.delay)
+            self.retries += 1
+            return True
+        else:
+            return False
+
+    def reset(self):
+        self.retries = 0
+
+
+class ExponentialStrategy(RetryStrategy):
+
+    def __init__(self, retries_limit=None, max_interval=16) -> None:
+        super().__init__()
+        self.retries_limit = retries_limit
+        self.max_interval = max_interval
+        self.retries = 0
+
+    async def retry(self) -> bool:
+        if self.retries_limit is None or self.retries_limit >= self.retries:
+            await asyncio.sleep(min(2 ** self.retries, self.max_interval))
+            self.retries += 1
+            return True
+        else:
+            return False
+
+    def reset(self):
+        self.retries = 0
+
+
 class _ConnectionPool:
 
-    def __init__(self) -> None:
+    def __init__(self, retry_strategy: RetryStrategy = None) -> None:
         self.__connections = dict()
+        self.retry_strategy = retry_strategy
 
     @property
     def _size(self) -> int:
         return len(self.__connections)
 
-    async def _get_connection(self, host_uri: str, scheme: str) -> '_WSConnection':
+    async def _get_connection(self, host_uri: str, scheme: str, keep_linked: bool,
+                              keep_synced: bool) -> '_WSConnection':
         """
         Return a WebSocket connection to the given Host URI. If it is a new
         host or the existing connection is closing, create a new connection.
 
         :param host_uri:        - URI of the connection host.
         :param scheme:          - URI scheme.
+        :param keep_linked:     - Whether the link should be automatically re-established after connection failures.
+        :param keep_synced:     - Whether the link should synchronize its state with the remote lane.
         :return:                - WebSocket connection.
         """
         connection = self.__connections.get(host_uri)
 
         if connection is None or connection.status == _ConnectionStatus.CLOSED:
-            connection = _WSConnection(host_uri, scheme)
+            connection = _WSConnection(host_uri, scheme, keep_linked, keep_synced, self.retry_strategy)
             self.__connections[host_uri] = connection
 
         return connection
@@ -70,7 +133,9 @@ class _ConnectionPool:
         """
         host_uri = downlink_view._host_uri
         scheme = downlink_view._scheme
-        connection = await self._get_connection(host_uri, scheme)
+        keep_linked = downlink_view._keep_linked
+        keep_synced = downlink_view._keep_synced
+        connection = await self._get_connection(host_uri, scheme, keep_linked, keep_synced)
         downlink_view._connection = connection
 
         await connection._subscribe(downlink_view)
@@ -95,12 +160,19 @@ class _ConnectionPool:
 
 class _WSConnection:
 
-    def __init__(self, host_uri: str, scheme: str) -> None:
+    def __init__(self, host_uri: str, scheme: str, keep_linked, keep_synced,
+                 retry_strategy: RetryStrategy = None) -> None:
         self.host_uri = host_uri
         self.scheme = scheme
+        self.retry_strategy = retry_strategy
+
         self.connected = asyncio.Event()
         self.websocket = None
         self.status = _ConnectionStatus.CLOSED
+        self.init_message = None
+
+        self.keep_linked = keep_linked
+        self.keep_synced = keep_synced
 
         self.__subscribers = _DownlinkManagerPool()
 
@@ -108,16 +180,24 @@ class _WSConnection:
         if self.status == _ConnectionStatus.CLOSED:
             self.status = _ConnectionStatus.CONNECTING
 
-            try:
-                if self.scheme == "wss":
-                    self.websocket = await websockets.connect(self.host_uri, ssl=True)
-                else:
-                    self.websocket = await websockets.connect(self.host_uri)
-            except Exception as error:
-                self.status = _ConnectionStatus.CLOSED
-                raise error
+            while self.status == _ConnectionStatus.CONNECTING:
+                try:
+                    if self.scheme == "wss":
+                        self.websocket = await websockets.connect(self.host_uri, ssl=True)
+                        self.retry_strategy.reset()
+                        self.status = _ConnectionStatus.IDLE
+                    else:
+                        self.websocket = await websockets.connect(self.host_uri)
+                        self.retry_strategy.reset()
+                        self.status = _ConnectionStatus.IDLE
+                except Exception as error:
+                    if self.keep_linked and await self.retry_strategy.retry():
+                        exception_warn(error)
+                        continue
+                    else:
+                        self.status = _ConnectionStatus.CLOSED
+                        raise error
 
-            self.status = _ConnectionStatus.IDLE
             self.connected.set()
 
     async def _close(self) -> None:
@@ -128,6 +208,20 @@ class _WSConnection:
                 self.websocket.close_timeout = 0.1
                 await self.websocket.close()
                 self.connected.clear()
+
+    def _set_init_message(self, message: str) -> None:
+        """
+        Set the initial message that gets sent when the underlying downlink is established.
+        """
+
+        self.init_message = message
+
+    async def _send_init_message(self) -> None:
+        """
+        Send the initial message for the underlying downlink if it is set.
+        """
+        if self.init_message is not None:
+            await self._send_message(self.init_message)
 
     def _has_subscribers(self) -> bool:
         """
@@ -181,18 +275,20 @@ class _WSConnection:
         Wait for messages from the remote agent and propagate them
         to all subscribers.
         """
-
-        if self.status == _ConnectionStatus.IDLE:
+        while self.status == _ConnectionStatus.IDLE:
             self.status = _ConnectionStatus.RUNNING
             try:
                 while self.status == _ConnectionStatus.RUNNING:
                     message = await self.websocket.recv()
                     response = _Envelope._parse_recon(message)
                     await self.__subscribers._receive_message(response)
-            # except:
-            #     pass
-            finally:
+            except ConnectionClosed as error:
+                exception_warn(error)
                 await self._close()
+                if self.keep_linked and await self.retry_strategy.retry():
+                    await self._open()
+                    await self._send_init_message()
+                    continue
 
 
 class _ConnectionStatus(Enum):

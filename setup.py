@@ -22,7 +22,7 @@ with open('requirements.txt') as f:
 
 setuptools.setup(
     name='swimos',
-    version='1.4.0-alpha',
+    version='1.5.0-alpha',
     author='Dobromir Marinov',
     author_email='dobromir@swim.it',
     description='Standalone Python framework for building massively real-time streaming WARP clients.',

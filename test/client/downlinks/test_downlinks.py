@@ -1140,6 +1140,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
             downlink_model = _ValueDownlinkModel(client)
             downlink_model.node_uri = 'foo'
             downlink_model.lane_uri = 'bar'
+            downlink_model.keep_synced = True
             downlink_model.connection = MockConnection()
 
             # When
@@ -1448,7 +1449,8 @@ class TestDownlinks(aiounittest.AsyncTestCase):
             downlink_view.get()
 
         # Then
-        self.assertEqual('Cannot execute "get" before the downlink has been opened!', mock_warn.call_args_list[0][0][0])
+        self.assertEqual('Cannot execute "get" before the downlink has been opened or after it has closed!',
+                         mock_warn.call_args_list[0][0][0])
 
     @patch('concurrent.futures._base.Future.result')
     async def test_value_downlink_view_set_blocking(self, mock_result):
@@ -1511,7 +1513,8 @@ class TestDownlinks(aiounittest.AsyncTestCase):
             downlink_view.set('value')
 
         # Then
-        self.assertEqual('Cannot execute "set" before the downlink has been opened!', mock_warn.call_args_list[0][0][0])
+        self.assertEqual('Cannot execute "set" before the downlink has been opened or after it has closed!',
+                         mock_warn.call_args_list[0][0][0])
 
     async def test_value_downlink_view_execute_did_set(self):
         # Given
@@ -1580,6 +1583,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
             downlink_model = _MapDownlinkModel(client)
             downlink_model.node_uri = 'dog'
             downlink_model.lane_uri = 'bark'
+            downlink_model.keep_synced = True
             downlink_model.connection = MockConnection()
 
             # When
@@ -2060,7 +2064,8 @@ class TestDownlinks(aiounittest.AsyncTestCase):
             downlink_view.get('a')
 
         # Then
-        self.assertEqual('Cannot execute "get" before the downlink has been opened!', mock_warn.call_args_list[0][0][0])
+        self.assertEqual('Cannot execute "get" before the downlink has been opened or after it has closed!',
+                         mock_warn.call_args_list[0][0][0])
 
     async def test_map_downlink_view_get_all_immediate(self):
         # Given
@@ -2147,7 +2152,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
             downlink_view.get_all()
 
         # Then
-        self.assertEqual('Cannot execute "get_all" before the downlink has been opened!',
+        self.assertEqual('Cannot execute "get_all" before the downlink has been opened or after it has closed!',
                          mock_warn.call_args_list[0][0][0])
 
     @patch('concurrent.futures._base.Future.result')
@@ -2207,7 +2212,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
             downlink_view.put('key_map', 'value_map')
 
         # Then
-        self.assertEqual('Cannot execute "put" before the downlink has been opened!',
+        self.assertEqual('Cannot execute "put" before the downlink has been opened or after it has closed!',
                          mock_warn.call_args_list[0][0][0])
 
     @patch('concurrent.futures._base.Future.result')
@@ -2267,7 +2272,7 @@ class TestDownlinks(aiounittest.AsyncTestCase):
             downlink_view.remove('key_map_remove')
 
         # Then
-        self.assertEqual('Cannot execute "remove" before the downlink has been opened!',
+        self.assertEqual('Cannot execute "remove" before the downlink has been opened or after it has closed!',
                          mock_warn.call_args_list[0][0][0])
 
     async def test_map_downlink_view_execute_did_update(self):

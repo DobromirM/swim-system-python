@@ -13,7 +13,6 @@
 #  limitations under the License.
 
 import asyncio
-from abc import ABC, abstractmethod
 import websockets
 
 from enum import Enum
@@ -27,20 +26,15 @@ if TYPE_CHECKING:
     from ._downlinks._downlinks import _DownlinkView
 
 
-class RetryStrategy(ABC):
-    @abstractmethod
+class RetryStrategy:
     async def retry(self) -> bool:
         """
         Wait for a period of time that is defined by the retry strategy.
         """
-        raise NotImplementedError
+        return False
 
-    @abstractmethod
     def reset(self):
-        """
-        Reset the retry strategy to its original state.
-        """
-        raise NotImplementedError
+        pass
 
 
 class IntervalStrategy(RetryStrategy):
@@ -52,7 +46,7 @@ class IntervalStrategy(RetryStrategy):
         self.retries = 0
 
     async def retry(self) -> bool:
-        if self.retries_limit is None or self.retries_limit >= self.retries:
+        if self.retries_limit is None or self.retries_limit > self.retries:
             await asyncio.sleep(self.delay)
             self.retries += 1
             return True
@@ -85,7 +79,7 @@ class ExponentialStrategy(RetryStrategy):
 
 class _ConnectionPool:
 
-    def __init__(self, retry_strategy: RetryStrategy = None) -> None:
+    def __init__(self, retry_strategy: RetryStrategy = RetryStrategy()) -> None:
         self.__connections = dict()
         self.retry_strategy = retry_strategy
 
@@ -161,7 +155,7 @@ class _ConnectionPool:
 class _WSConnection:
 
     def __init__(self, host_uri: str, scheme: str, keep_linked, keep_synced,
-                 retry_strategy: RetryStrategy = None) -> None:
+                 retry_strategy: RetryStrategy = RetryStrategy()) -> None:
         self.host_uri = host_uri
         self.scheme = scheme
         self.retry_strategy = retry_strategy
@@ -191,7 +185,7 @@ class _WSConnection:
                         self.retry_strategy.reset()
                         self.status = _ConnectionStatus.IDLE
                 except Exception as error:
-                    if self.keep_linked and await self.retry_strategy.retry():
+                    if self.should_reconnect() and await self.retry_strategy.retry():
                         exception_warn(error)
                         continue
                     else:
@@ -208,6 +202,14 @@ class _WSConnection:
                 self.websocket.close_timeout = 0.1
                 await self.websocket.close()
                 self.connected.clear()
+
+    def should_reconnect(self) -> bool:
+        """
+        Return a boolean flag indicating whether the connection should try to reconnect on failure.
+
+        :return:        - True if the connection should try to reconnect on failure.
+        """
+        return self.keep_linked or self.keep_synced
 
     def _set_init_message(self, message: str) -> None:
         """
@@ -285,7 +287,7 @@ class _WSConnection:
             except ConnectionClosed as error:
                 exception_warn(error)
                 await self._close()
-                if self.keep_linked and await self.retry_strategy.retry():
+                if self.should_reconnect() and await self.retry_strategy.retry():
                     await self._open()
                     await self._send_init_message()
                     continue

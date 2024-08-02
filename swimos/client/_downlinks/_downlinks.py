@@ -188,11 +188,11 @@ class _DownlinkView(ABC):
 
     def open(self) -> '_DownlinkView':
         if self._host_uri is None:
-            raise Exception(f'Downlink cannot be opened without first setting the host URI!')
+            raise Exception('Downlink cannot be opened without first setting the host URI!')
         if self._node_uri is None:
-            raise Exception(f'Downlink cannot be opened without first setting the node URI!')
+            raise Exception('Downlink cannot be opened without first setting the node URI!')
         if self._lane_uri is None:
-            raise Exception(f'Downlink cannot be opened without first setting the lane URI!')
+            raise Exception('Downlink cannot be opened without first setting the lane URI!')
 
         if not self._is_open:
             task = self._client._schedule_task(self._client._add_downlink_view, self)

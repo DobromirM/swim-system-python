@@ -221,6 +221,9 @@ class TestSwimClient(aiounittest.AsyncTestCase):
         swim_client = SwimClient()
         # When
         downlink_event = swim_client.downlink_event()
+        downlink_event.set_host_uri("ws://test.com")
+        downlink_event.set_node_uri("node")
+        downlink_event.set_lane_uri("lane")
         downlink_event.open()
         # Then
         self.assertEqual('Cannot execute "_add_downlink_view" before the client has been started!',
@@ -242,6 +245,9 @@ class TestSwimClient(aiounittest.AsyncTestCase):
         swim_client = SwimClient()
         # When
         downlink_map = swim_client.downlink_map()
+        downlink_map.set_host_uri("ws://test.com")
+        downlink_map.set_node_uri("node")
+        downlink_map.set_lane_uri("lane")
         downlink_map.open()
         # Then
         self.assertEqual('Cannot execute "_add_downlink_view" before the client has been started!',
@@ -263,6 +269,9 @@ class TestSwimClient(aiounittest.AsyncTestCase):
         swim_client = SwimClient()
         # When
         downlink_value = swim_client.downlink_value()
+        downlink_value.set_host_uri("ws://test.com")
+        downlink_value.set_node_uri("node")
+        downlink_value.set_lane_uri("lane")
         downlink_value.open()
         # Then
         self.assertEqual('Cannot execute "_add_downlink_view" before the client has been started!',
@@ -327,10 +336,10 @@ class TestSwimClient(aiounittest.AsyncTestCase):
             downlink_view._node_uri = node_uri
             downlink_view._lane_uri = lane_uri
             # When
-            await swim_client._get_connection(host_uri, scheme)
+            await swim_client._get_connection(host_uri, scheme, True, True)
 
         # Then
-        mock_get_connection.assert_called_once_with(host_uri, scheme)
+        mock_get_connection.assert_called_once_with(host_uri, scheme, True, True)
 
     async def test_swim_client_test_schedule_task(self):
         #  Given

@@ -13,5 +13,6 @@
 #  limitations under the License.
 
 from ._swim_client import SwimClient
+from ._connections import IntervalStrategy
 
-__all__ = [SwimClient]
+__all__ = [SwimClient, IntervalStrategy]

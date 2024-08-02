@@ -93,7 +93,8 @@ class TestDownlinkUtils(unittest.TestCase):
         # When
         downlink_view.get(False)
         # Then
-        self.assertEqual('Cannot execute "get" before the downlink has been opened!', mock_warn.call_args_list[0][0][0])
+        self.assertEqual('Cannot execute "get" before the downlink has been opened or after it has closed!',
+                         mock_warn.call_args_list[0][0][0])
 
     def test_after_open_valid_with_kwargs(self):
         # Given
@@ -115,7 +116,8 @@ class TestDownlinkUtils(unittest.TestCase):
         # When
         downlink_view.get(wait_sync=False)
         # Then
-        self.assertEqual('Cannot execute "get" before the downlink has been opened!', mock_warn.call_args_list[0][0][0])
+        self.assertEqual('Cannot execute "get" before the downlink has been opened or after it has closed!',
+                         mock_warn.call_args_list[0][0][0])
 
     def test_map_request_get_key_item_primitive(self):
         # Given

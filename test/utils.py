@@ -174,6 +174,7 @@ class MockConnection:
         self.owner = None
         self.messages_sent = list()
         self.messages_to_receive = list()
+        self.init_message = None
 
     @staticmethod
     def get_mock_connection():
@@ -196,6 +197,13 @@ class MockConnection:
 
     async def _send_message(self, message):
         self.messages_sent.append(message)
+
+    async def _send_init_message(self) -> None:
+        if self.init_message is not None:
+            await self._send_message(self.init_message)
+
+    def _set_init_message(self, message: str) -> None:
+        self.init_message = message
 
 
 def mock_did_set_confirmation():

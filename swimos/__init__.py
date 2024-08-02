@@ -12,6 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from .client import SwimClient
+from .client import SwimClient, IntervalStrategy
 
-__all__ = [SwimClient]
+__all__ = [SwimClient, IntervalStrategy]

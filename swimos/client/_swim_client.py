@@ -16,23 +16,23 @@ import asyncio
 import os
 import sys
 import traceback
-import warnings
 
 from asyncio import Future
 from concurrent.futures import CancelledError
 from threading import Thread
 from traceback import TracebackException
 from typing import Callable, Any, Optional
-from ._connections import _ConnectionPool, _WSConnection
+from ._connections import _ConnectionPool, _WSConnection, RetryStrategy, IntervalStrategy
 from ._downlinks._downlinks import _ValueDownlinkView, _EventDownlinkView, _DownlinkView, _MapDownlinkView
-from ._utils import _URI, after_started
+from ._utils import _URI, after_started, exception_warn
 from swimos.structures import RecordConverter
 from swimos.warp._warp import _CommandMessage
 
 
 class SwimClient:
 
-    def __init__(self, terminate_on_exception: bool = False, execute_on_exception: Callable = None,
+    def __init__(self, retry_strategy: RetryStrategy = IntervalStrategy(), terminate_on_exception: bool = False,
+                 execute_on_exception: Callable = None,
                  debug: bool = False) -> None:
         self.debug = debug
         self.execute_on_exception = execute_on_exception
@@ -41,7 +41,7 @@ class SwimClient:
         self._loop = None
         self._loop_thread = None
         self._has_started = False
-        self.__connection_pool = _ConnectionPool()
+        self.__connection_pool = _ConnectionPool(retry_strategy)
 
     def __enter__(self) -> 'SwimClient':
         self.start()
@@ -67,6 +67,19 @@ class SwimClient:
         self._loop_thread = Thread(target=self.__start_event_loop)
         self._loop_thread.start()
         self._has_started = True
+
+        return self
+
+    def join(self, timeout=None) -> 'SwimClient':
+        """
+        Wait until the Swim client thread terminates.
+        This blocks the calling thread until the Swim client thread terminates
+        or until the optional timeout is reached.
+        It should be noted that when the timeout is reached, the method returns, but the thread is not terminated.
+
+        :param timeout:        - Time to wait in seconds (Optional).
+        """
+        self._loop_thread.join(timeout=timeout)
 
         return self
 
@@ -129,15 +142,18 @@ class SwimClient:
         """
         await self.__connection_pool._remove_downlink_view(downlink_view)
 
-    async def _get_connection(self, host_uri: str, scheme: str) -> '_WSConnection':
+    async def _get_connection(self, host_uri: str, scheme: str, keep_linked: bool,
+                              keep_synced: bool) -> '_WSConnection':
         """
         Get a WebSocket connection to the specified host from the connection pool.
 
         :param host_uri:        - URI of the host.
         :param scheme:          - URI scheme.
+        :param keep_linked:     - Whether the link should be automatically re-established after connection failures.
+        :param keep_synced:     - Whether the link should synchronize its state with the remote lane.
         :return:                - WebSocket connection to the host.
         """
-        connection = await self.__connection_pool._get_connection(host_uri, scheme)
+        connection = await self.__connection_pool._get_connection(host_uri, scheme, keep_linked, keep_synced)
         return connection
 
     @after_started
@@ -165,7 +181,7 @@ class SwimClient:
         :param exc_value:       - Exception value.
         :param exc_traceback:   - Exception traceback.
         """
-        warnings.warn(str(exc_value))
+        exception_warn(exc_value)
 
         if self.debug:
             traceback.print_tb(exc_traceback)
@@ -203,7 +219,7 @@ class SwimClient:
         record = RecordConverter.get_converter().object_to_record(body)
         host_uri, scheme = _URI._parse_uri(host_uri)
         message = _CommandMessage(node_uri, lane_uri, body=record)
-        connection = await self._get_connection(host_uri, scheme)
+        connection = await self._get_connection(host_uri, scheme, True, False)
         await connection._send_message(message._to_recon())
 
     def __start_event_loop(self) -> None:

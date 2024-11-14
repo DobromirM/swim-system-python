@@ -13,6 +13,6 @@
 #  limitations under the License.
 
 from ._swim_client import SwimClient
-from ._connections import IntervalStrategy
+from ._connections import RetryStrategy, IntervalStrategy, ExponentialStrategy
 
-__all__ = [SwimClient, IntervalStrategy]
+__all__ = [SwimClient, RetryStrategy, IntervalStrategy, ExponentialStrategy]

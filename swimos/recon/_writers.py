@@ -135,7 +135,7 @@ class _AttrWriter(_AbstractWriter):
         if key_text:
             output._append(key_text)
 
-        if value != _Extant._get_extant() and value is not None:
+        if value != _Extant._get_extant() and value != _Absent._get_absent() and value is not None:
             output._append('(')
             value_text = writer._write_value(value)
             output._append(value_text)

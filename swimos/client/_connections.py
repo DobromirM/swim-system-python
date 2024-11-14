@@ -24,6 +24,7 @@ from ._utils import exception_warn
 if TYPE_CHECKING:
     from ._downlinks._downlinks import _DownlinkModel
     from ._downlinks._downlinks import _DownlinkView
+    from .. import SwimClient
 
 
 class RetryStrategy:
@@ -79,7 +80,8 @@ class ExponentialStrategy(RetryStrategy):
 
 class _ConnectionPool:
 
-    def __init__(self, retry_strategy: RetryStrategy = RetryStrategy()) -> None:
+    def __init__(self, client: 'SwimClient', retry_strategy: RetryStrategy = RetryStrategy()) -> None:
+        self.__client = client
         self.__connections = dict()
         self.retry_strategy = retry_strategy
 
@@ -102,7 +104,7 @@ class _ConnectionPool:
         connection = self.__connections.get(host_uri)
 
         if connection is None or connection.status == _ConnectionStatus.CLOSED:
-            connection = _WSConnection(host_uri, scheme, keep_linked, keep_synced, self.retry_strategy)
+            connection = _WSConnection(self.__client, host_uri, scheme, keep_linked, keep_synced, self.retry_strategy)
             self.__connections[host_uri] = connection
 
         return connection
@@ -154,7 +156,7 @@ class _ConnectionPool:
 
 class _WSConnection:
 
-    def __init__(self, host_uri: str, scheme: str, keep_linked, keep_synced,
+    def __init__(self, client: 'SwimClient', host_uri: str, scheme: str, keep_linked, keep_synced,
                  retry_strategy: RetryStrategy = RetryStrategy()) -> None:
         self.host_uri = host_uri
         self.scheme = scheme
@@ -163,12 +165,15 @@ class _WSConnection:
         self.connected = asyncio.Event()
         self.websocket = None
         self.status = _ConnectionStatus.CLOSED
+        self.auth_message = None
         self.init_message = None
 
         self.keep_linked = keep_linked
         self.keep_synced = keep_synced
 
         self.__subscribers = _DownlinkManagerPool()
+        self.__authenticated = asyncio.Event()
+        self.__client = client
 
     async def _open(self) -> None:
         if self.status == _ConnectionStatus.CLOSED:
@@ -210,6 +215,20 @@ class _WSConnection:
         :return:        - True if the connection should try to reconnect on failure.
         """
         return self.keep_linked or self.keep_synced
+
+    def _set_auth_message(self, message: str) -> None:
+        """
+        Set the initial auth message that gets sent when the underlying downlink is established.
+        """
+
+        self.auth_message = message
+
+    async def _send_auth_message(self) -> None:
+        """
+        Send the initial auth message for the underlying downlink if it is set.
+        """
+        if self.auth_message is not None:
+            await self._send_message(self.auth_message)
 
     def _set_init_message(self, message: str) -> None:
         """
@@ -283,14 +302,52 @@ class _WSConnection:
                 while self.status == _ConnectionStatus.RUNNING:
                     message = await self.websocket.recv()
                     response = _Envelope._parse_recon(message)
-                    await self.__subscribers._receive_message(response)
+
+                    if response._route:
+                        await self.__subscribers._receive_message(response)
+                    else:
+                        await self._receive_message(self.host_uri, response)
             except ConnectionClosed as error:
                 exception_warn(error)
                 await self._close()
                 if self.should_reconnect() and await self.retry_strategy.retry():
                     await self._open()
+                    await self._send_auth_message()
                     await self._send_init_message()
                     continue
+
+    async def _receive_message(self, host_uri: str, message: '_Envelope') -> None:
+        """
+        Receive a host addressed message from the remote host.
+
+        :param host_uri:        - Uri of the remote host.
+        :param message:         - Message received from the remote host.
+        """
+
+        if message._tag == 'authed':
+            await self._receive_authed(host_uri, message)
+        elif message._tag == 'deauthed':
+            await self._receive_deauthed(host_uri, message)
+
+    async def _receive_authed(self, host_uri: str, message: '_Envelope') -> None:
+        """
+        Handle an `authed` response message from the remote agent.
+
+        :param host_uri:        - Uri of the remote host.
+        :param message:         - Message received from the remote host.
+        """
+        self.__authenticated.set()
+        await self.__client._execute_did_auth(host_uri, message)
+
+    async def _receive_deauthed(self, host_uri: str, message: '_Envelope') -> None:
+        """
+        Handle a `deauthed` response message from the remote agent.
+
+        :param host_uri:        - Uri of the remote host.
+        :param message:         - Message received from the remote host.
+        """
+        self.__authenticated.clear()
+        await self.__client._execute_did_deauth(host_uri, message)
 
 
 class _ConnectionStatus(Enum):

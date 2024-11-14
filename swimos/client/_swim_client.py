@@ -24,9 +24,10 @@ from traceback import TracebackException
 from typing import Callable, Any, Optional
 from ._connections import _ConnectionPool, _WSConnection, RetryStrategy, IntervalStrategy
 from ._downlinks._downlinks import _ValueDownlinkView, _EventDownlinkView, _DownlinkView, _MapDownlinkView
+from ._downlinks._utils import validate_callback
 from ._utils import _URI, after_started, exception_warn
 from swimos.structures import RecordConverter
-from swimos.warp._warp import _CommandMessage
+from swimos.warp._warp import _CommandMessage, _AuthRequest, _Envelope
 
 
 class SwimClient:
@@ -41,7 +42,31 @@ class SwimClient:
         self._loop = None
         self._loop_thread = None
         self._has_started = False
-        self.__connection_pool = _ConnectionPool(retry_strategy)
+        self._did_auth_callback = None
+        self._did_deauth_callback = None
+        self.authed_hosts = dict()
+
+        self.__connection_pool = _ConnectionPool(self, retry_strategy)
+
+    def did_auth(self, function: Callable) -> 'SwimClient':
+        """
+        Set the `did_auth` callback of the current client to a given function.
+
+        :param function:   - Function to be called when a remote host is authenticated.
+        :return:           - The current Swim client.
+        """
+        self._did_auth_callback = validate_callback(function)
+        return self
+
+    def did_deauth(self, function: Callable) -> 'SwimClient':
+        """
+        Set the `did_deauth` callback of the current client to a given function.
+
+        :param function:   - Function to be called when a remote host is deauthenticated.
+        :return:           - The current Swim client.
+        """
+        self._did_deauth_callback = validate_callback(function)
+        return self
 
     def __enter__(self) -> 'SwimClient':
         self.start()
@@ -95,7 +120,7 @@ class SwimClient:
 
         return self
 
-    def command(self, host_uri: str, node_uri: str, lane_uri: str, body: Any) -> 'Future':
+    def command(self, host_uri: str, node_uri: str, lane_uri: str, body: Any):
         """
         Send a command message to a command lane on a remote Swim agent.
 
@@ -106,6 +131,17 @@ class SwimClient:
         """
 
         return self._schedule_task(self.__send_command, host_uri, node_uri, lane_uri, body)
+
+    def authenticate(self, host_uri: str, body: Any):
+        """
+        Send an authentication request to a remote Swim server.
+
+        :param host_uri:        - Host URI of the remote server.
+        :param body:            - The authentication message body.
+        """
+
+        self.authed_hosts[host_uri] = asyncio.Event()
+        return self._schedule_task(self.__authenticate, host_uri, body)
 
     def downlink_event(self) -> '_EventDownlinkView':
         """
@@ -155,6 +191,26 @@ class SwimClient:
         """
         connection = await self.__connection_pool._get_connection(host_uri, scheme, keep_linked, keep_synced)
         return connection
+
+    async def _execute_did_auth(self, host_uri: str, message: '_Envelope') -> None:
+        """
+        Execute the custom `did_auth` callback of the current Swim client.
+
+        :param host_uri:        - Uri of the remote host.
+        :param message:         - Message received from the remote host.
+        """
+        if self._did_auth_callback:
+            self._schedule_task(self._did_auth_callback, host_uri, message)
+
+    async def _execute_did_deauth(self, host_uri: str, message: '_Envelope') -> None:
+        """
+        Execute the custom `did_deauth` callback of the current Swim client.
+
+        :param host_uri:        - Uri of the remote host.
+        :param message:         - Message received from the remote host.
+        """
+        if self._did_deauth_callback:
+            self._schedule_task(self._did_deauth_callback, host_uri, message)
 
     @after_started
     def _schedule_task(self, task: Callable, *args: Any) -> 'Future':
@@ -220,6 +276,22 @@ class SwimClient:
         host_uri, scheme = _URI._parse_uri(host_uri)
         message = _CommandMessage(node_uri, lane_uri, body=record)
         connection = await self._get_connection(host_uri, scheme, True, False)
+        await connection._send_message(message._to_recon())
+
+    async def __authenticate(self, host_uri: str, body: Any) -> None:
+        """
+        Send an authentication request to a given host.
+
+        :param host_uri:        - Host URI of the remote host.
+        :param body:            - The authentication message body.
+        """
+        record = RecordConverter.get_converter().object_to_record(body)
+        host_uri, scheme = _URI._parse_uri(host_uri)
+        message = _AuthRequest(body=record)
+        connection = await self._get_connection(host_uri, scheme, True, False)
+        connection._set_auth_message(message._to_recon())
+        await connection._open()
+        self._schedule_task(connection._wait_for_messages)
         await connection._send_message(message._to_recon())
 
     def __start_event_loop(self) -> None:

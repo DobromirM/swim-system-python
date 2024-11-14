@@ -22,12 +22,14 @@ from swimos.structures._structs import _Record, _Item
 
 class _Envelope(ABC):
 
-    def __init__(self, node_uri: str, lane_uri: str, tag: str, form: '_Form', body: _Item = Value.absent()) -> None:
-        self._node_uri = node_uri
-        self._lane_uri = lane_uri
+    def __init__(self, tag: str, form: '_Form', body: _Item = Value.absent()) -> None:
         self._tag = tag
         self._form = form
         self._body = body
+
+    @property
+    def _route(self) -> None:
+        return None
 
     @staticmethod
     def _create_from_value(value: RecordMap) -> '_Envelope':
@@ -49,10 +51,6 @@ class _Envelope(ABC):
         :return:                - Swim value object from this Envelope.
         """
         return self._form._mold(self)
-
-    @property
-    def _route(self) -> str:
-        return f'{self._node_uri}/{self._lane_uri}'
 
     @staticmethod
     def _parse_recon(recon_message: str) -> Optional['_Envelope']:
@@ -89,6 +87,14 @@ class _Envelope(ABC):
             return _EventMessageForm()
         if tag == 'command':
             return _CommandMessageForm()
+        if tag == 'auth':
+            return _AuthRequestForm()
+        if tag == 'authed':
+            return _AuthedResponseForm()
+        if tag == 'deauth':
+            return _DeauthRequestForm()
+        if tag == 'deauthed':
+            return _DeauthedResponseForm()
         else:
             raise TypeError(f'Invalid form tag: {tag}')
 
@@ -104,19 +110,37 @@ class _Envelope(ABC):
         return self._to_recon()
 
 
+class _HostAddressedEnvelope(_Envelope):
+
+    def __init__(self, tag: str, form: '_Form', body: _Item = Value.absent()) -> None:
+        super().__init__(tag, form, body)
+
+
 class _LinkAddressedEnvelope(_Envelope):
 
     def __init__(self, node_uri: str, lane_uri: str, prio: float, rate: float, tag: str, form: '_Form',
                  body: _Item = Value.absent()) -> None:
-        super().__init__(node_uri, lane_uri, tag, form, body)
+        super().__init__(tag, form, body)
+        self._node_uri = node_uri
+        self._lane_uri = lane_uri
         self._prio = prio
         self._rate = rate
+
+    @property
+    def _route(self) -> str:
+        return f'{self._node_uri}/{self._lane_uri}'
 
 
 class _LaneAddressedEnvelope(_Envelope):
 
     def __init__(self, node_uri: str, lane_uri: str, tag: str, form: '_Form', body=Value.absent()) -> None:
-        super().__init__(node_uri, lane_uri, tag, form, body)
+        super().__init__(tag, form, body)
+        self._node_uri = node_uri
+        self._lane_uri = lane_uri
+
+    @property
+    def _route(self) -> str:
+        return f'{self._node_uri}/{self._lane_uri}'
 
 
 class _LinkRequest(_LinkAddressedEnvelope):
@@ -164,6 +188,30 @@ class _EventMessage(_LaneAddressedEnvelope):
         super().__init__(node_uri, lane_uri, tag='event', form=_EventMessageForm(), body=body)
 
 
+class _AuthRequest(_HostAddressedEnvelope):
+
+    def __init__(self, body: _Item = Value.absent()) -> None:
+        super().__init__(tag='auth', form=_AuthRequestForm(), body=body)
+
+
+class _AuthedResponse(_HostAddressedEnvelope):
+
+    def __init__(self, body: _Item = Value.absent()) -> None:
+        super().__init__(tag='authed', form=_AuthedResponseForm(), body=body)
+
+
+class _DeauthRequest(_HostAddressedEnvelope):
+
+    def __init__(self, body: _Item = Value.absent()) -> None:
+        super().__init__(tag='deauth', form=_DeauthRequestForm(), body=body)
+
+
+class _DeauthedResponse(_HostAddressedEnvelope):
+
+    def __init__(self, body: _Item = Value.absent()) -> None:
+        super().__init__(tag='deauthed', form=_DeauthedResponseForm(), body=body)
+
+
 class _Form(ABC):
 
     @property
@@ -195,6 +243,28 @@ class _Form(ABC):
         :return:                - Envelope object created from the RecordMap.
         """
         raise NotImplementedError
+
+
+class _HostAddressedForm(_Form):
+
+    @abstractmethod
+    def _create_envelope_from(self, body: _Item) -> '_Envelope':
+        """
+        :param body:            - Body of the Envelope.
+        :return:                - Envelope corresponding to the HostAddressedForm.
+        """
+        raise NotImplementedError
+
+    def _mold(self, envelope: Optional['_HostAddressedEnvelope']) -> 'Value':
+
+        if envelope is not None:
+            headers = _Record.absent()
+            return Attr.create_attr(self._tag, headers)._concat(envelope._body)
+        else:
+            return _Item.extant()
+
+    def _cast(self, item: 'RecordMap') -> Optional['_Envelope']:
+        return self._create_envelope_from(item.value)
 
 
 class _LinkAddressedForm(_Form):
@@ -371,3 +441,43 @@ class _EventMessageForm(_LaneAddressedForm):
 
     def _create_envelope_from(self, node_uri: str, lane_uri: str, body: _Item) -> '_Envelope':
         return _EventMessage(node_uri, lane_uri, body)
+
+
+class _AuthRequestForm(_HostAddressedForm):
+
+    @property
+    def _tag(self) -> str:
+        return 'auth'
+
+    def _create_envelope_from(self, body: _Item) -> '_Envelope':
+        return _AuthRequest(body=body)
+
+
+class _AuthedResponseForm(_HostAddressedForm):
+
+    @property
+    def _tag(self) -> str:
+        return 'authed'
+
+    def _create_envelope_from(self, body: _Item) -> '_Envelope':
+        return _AuthedResponse(body=body)
+
+
+class _DeauthRequestForm(_HostAddressedForm):
+
+    @property
+    def _tag(self) -> str:
+        return 'deauth'
+
+    def _create_envelope_from(self, body: _Item) -> '_Envelope':
+        return _DeauthRequest(body=body)
+
+
+class _DeauthedResponseForm(_HostAddressedForm):
+
+    @property
+    def _tag(self) -> str:
+        return 'deauthed'
+
+    def _create_envelope_from(self, body: _Item) -> '_Envelope':
+        return _DeauthedResponse(body=body)
